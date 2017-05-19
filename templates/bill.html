@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+    <title>账单系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <script src="/static/js/jquery-3.1.1.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/tpl.min.js"></script>
+<script type="text/javascript">
+{% include "/ha.js" %}
+</script>
+<style type="text/css">
+.red{color:#f00;}
+</style>
+
+<script type="text/javascript">
+var show_type = function (t) {
+    if (t == 1)
+        return "CGG为双方";
+    else if (t == 2)
+        return "CGG为JHK";
+    else if (t == 3)
+        return "JHK为双方";
+    else if (t == 4)
+        return "JHK为CGG";
+    else
+        return "Err";
+};
+var refresh = function () {
+    $.post('/ha/bill/s/show', {}, function(r){
+        show_msg('数据渲染中...');
+        var pay_for_cgg = 0;
+        for (var i=0; i<r.ds.length; i++) {
+            if (!r.ds[i][6])
+                continue;
+            var t = r.ds[i][3];
+            var m = r.ds[i][4];
+            if (t == 1)
+                pay_for_cgg += m / 2.0;
+            else if (t == 2)
+                pay_for_cgg += m;
+            else if (t == 3)
+                pay_for_cgg -= m / 2.0;
+            else if (t == 4)
+                pay_for_cgg -= m;
+            else
+                show_err_msg("Bug");
+        }
+        if (pay_for_cgg >= 0)
+            $('#ret').html('JHK欠CGG ' + (pay_for_cgg / 100).toFixed(2) + '元')
+        else
+            $('#ret').html('CGG欠JHK ' + (-pay_for_cgg / 100).toFixed(2) + '元')
+        var r = tpl($('#infos_tpl').html(), {'ds' : r.ds});
+        $('#infos').html(r);
+        hide_msg();
+        $('.modify').click(function () {
+            d = {
+                'username': $(this).attr('data-u'),
+                'timestamp': parseInt($(this).attr('data-t')),
+                'effectiveness': parseInt($(this).attr('data-e')),
+            }
+            $.post('/ha/bill/s/modify', JSON.stringify(d), function (r) {
+                refresh();
+            });
+            show_msg('数据提交中...');
+            return false;
+        });
+    });
+    show_msg('数据获取中...');
+};
+$(function () {
+    refresh();
+    $('#commit').click(function () {
+        if (!$('input:radio:checked[name="type"]').val()) {
+            show_err_msg('请选择类型');
+            return;
+        }
+        if (!$('#money').val().match(/^[0-9]+(\.[0-9]+)?$/)) {
+            show_err_msg('请输入合法的金额');
+            return;
+        }
+        if (!$('#action').val()) {
+            show_err_msg('请输入用途');
+            return;
+        }
+        d = {
+            'type': parseInt($('input:radio:checked[name="type"]').val()),
+            'money': parseInt(parseFloat($('#money').val()) * 100),
+            'action': $('#action').val(),
+        };
+        $.post('/ha/bill/s/commit', JSON.stringify(d), function (r) {
+            refresh();
+        });
+        show_msg('数据提交中...');
+    });
+});
+</script>
+<script id="infos_tpl" type="text/tpl">
+<% for (var i=0; i<ds.length; i++) { %>
+    <tr>
+        <td><% = (ds.length - i) %></td>
+        <td><% = timestampformat(ds[i][1]) %></td>
+        <td><% = ds[i][0] %></td>
+        <td><% = show_type(ds[i][3]) %></td>
+        <% if (ds[i][6]) { %>
+            <td><% = (ds[i][4] / 100).toFixed(2) + '元' %></td>
+        <% } else { %>
+            <td><s><% = (ds[i][4] / 100).toFixed(2) + '元' %></s></td>
+        <% } %>
+        <td><% = ds[i][5] %></td>
+        <!--<td><% = ds[i][6]? "√": "×" %></td>-->
+        <td>
+            <a class="btn btn-default modify" href="#" role="button" data-t="<% = ds[i][1] %>" data-u="<% = ds[i][0] %>" data-e="<% = ds[i][6]? 0: 1 %>">
+                <% = ds[i][6]? "失效": "生效" %>
+            </a>
+        </td>
+    </tr>
+<% } %>
+</script>
+</head>
+<body>
+<div class="container-fluid">
+    {% with username=username %}
+    {% include "/header.html" %}
+    {% endwith %}
+</div>
+<div class="container">
+    <div class="row clearfix">
+        <div class="page-header">
+            <h1>账单系统
+                <small>Demo</small>
+            </h1>
+        </div>
+    </div>
+    <div class="row clearfix">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+        <form class="form-horizontal">
+            <div class="form-group">
+                <label class="control-label">类型:</label>
+                <label class="checkbox-inline">
+                    <input type="radio" name="type" value="1" /> CGG为双方
+                </label>
+                <label class="checkbox-inline">
+                    <input type="radio" name="type" value="2" /> CGG为JHK
+                </label>
+                <label class="checkbox-inline">
+                    <input type="radio" name="type" value="3" /> JHK为双方
+                </label>
+                <label class="checkbox-inline">
+                    <input type="radio" name="type" value="4" /> JHK为CGG
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="money">金额</label>
+                <input type="text" class="form-control" id="money" placeholder="请输入金额(最小单位分)">
+            </div>
+            <div class="form-group">
+                <label for="action">用途</label>
+                <input type="text" class="form-control" id="action" placeholder="请输入用途">
+            </div>
+            <div class="form-group">
+                <button id="commit" type="button" class="btn btn-primary">
+                    入账
+                </button>
+            </div>
+        </form>
+        </div>
+    </div>
+    <p></p>
+    <p></p>
+    <div class="row clearfix">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+        <h3>
+            实时账单
+        <small id="ret"></small>
+        </h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>时间</th>
+                    <th>记录人</th>
+                    <th>类型</th>
+                    <th>金额</th>
+                    <th>用途</th>
+                    <!--<th>有效性</th>-->
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="infos">
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% include "/modal.html" %}
+</body>
+</html>

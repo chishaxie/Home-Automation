@@ -1,0 +1,24 @@
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <!-- <a class="navbar-brand" href="/ha">
+            <img alt="ai4health" src="/static/img/logo.jpg" style="width:30px" />
+        </a> -->
+        <h2 class="navbar-text">
+            <a href="/ha"></a>Home Automation
+        </h2>
+        <div id="top" class="top nav navbar-nav navbar-right" style="margin-right: 8px; margin-top: 5px;">
+            <ul class="list-inline navbar-text" id="header-user-info">
+                <li>欢迎您</li>
+                <li><a href="/ha/login">登录</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<script type="text/javascript">
+    var username = "{{ username }}";
+    $(function() {
+        if (username) {
+            $('#top').html('<ul class="list-inline navbar-text" id="header-user-info"><li>欢迎您, ' + username + '</li><a href="/ha/logout">退出</a></li></ul>');
+        }
+    });
+</script>
